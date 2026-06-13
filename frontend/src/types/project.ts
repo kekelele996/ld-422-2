@@ -1,4 +1,6 @@
 import type { ProjectStatus } from "./enums";
+import type { ProjectMember } from "./member";
+import type { ExperimentRecord } from "./experiment";
 
 export type ResearchProject = {
   id: string;
@@ -12,4 +14,6 @@ export type ResearchProject = {
   status: ProjectStatus;
   totalBudget: number;
   usedBudget: number;
+  members?: ProjectMember[];
+  timeline?: ExperimentRecord[];
 };
