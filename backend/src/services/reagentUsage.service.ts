@@ -13,7 +13,7 @@ export const reagentUsageService = {
     const quantity = Number(input.quantity ?? 0);
     if (quantity <= 0) throw new ApiError(400, "QUANTITY_INVALID", "领用数量必须大于 0");
     if (reagent.stock < quantity) throw new ApiError(409, "INSUFFICIENT_STOCK", "库存不足");
-    reagent.stock += quantity;
+    reagent.stock -= quantity;
     const usage: ReagentUsage = {
       id: `use-${Date.now()}`,
       reagentId: input.reagentId,

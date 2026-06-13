@@ -13,7 +13,7 @@ export const projectService = {
     return {
       ...project,
       members: members.filter((member) => member.projectId === id),
-      timeline: experiments.filter((experiment) => experiment.id === id)
+      timeline: experiments.filter((experiment) => experiment.projectId === id)
     };
   },
   create(input: Partial<ResearchProject>) {
