@@ -89,6 +89,27 @@
       .badge.Submitted, .badge.Proposal, .badge.Irritant, .badge.Flammable { color: var(--amber); background: #f5e8d1; }
       .badge.Rejected, .badge.Corrosive, .badge.Toxic, .badge.Explosive { color: var(--red); background: #f2dbd8; }
       .alert { border-left: 5px solid var(--red); background: #faeee8; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; }
+      .timeline { position: relative; padding-left: 24px; margin: 16px 0; }
+      .timeline::before { content: ""; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+      .timeline-item { position: relative; padding-bottom: 20px; }
+      .timeline-item:last-child { padding-bottom: 0; }
+      .timeline-item::before { content: ""; position: absolute; left: -20px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--green); border: 2px solid var(--panel); }
+      .timeline-date { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+      .timeline-title { font-weight: 600; }
+      .timeline-status { margin-left: 8px; }
+      .detail-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 14px; color: var(--muted); }
+      .detail-back:hover { background: #ece6d7; }
+      .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .detail-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+      .detail-meta-item { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+      .detail-meta-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+      .detail-meta-value { font-weight: 600; }
+      .section-title { font-size: 16px; font-weight: 600; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+      .members-list { display: flex; flex-wrap: wrap; gap: 8px; }
+      .member-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+      .member-tag .role { color: var(--muted); font-size: 11px; }
+      .clickable-row { cursor: pointer; }
+      .clickable-row:hover { background: #f5f0e3; }
       @media (max-width: 760px) {
         .shell { grid-template-columns: 1fr; }
         aside { height: auto; position: static; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -119,10 +140,11 @@
       };
       const badge = (value) => `<span class="badge ${value}">${value}</span>`;
       const currency = (value) => new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value);
-      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [] };
+      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [], projectDetail: null };
 
       async function show(view) {
         state.view = view;
+        state.projectDetail = null;
         document.querySelectorAll(".nav").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
         if (view === "dashboard") state.dashboard = await api("/dashboard");
         if (view === "projects") { state.projects = await api("/projects"); state.members = await api("/members"); }
@@ -144,8 +166,29 @@
           ${table(["项目", "方向", "状态", "经费"], d.activeProjects.map((x) => [x.name, x.direction, badge(x.status), progress(x.usedBudget, x.totalBudget)]))}`;
         }
         if (state.view === "projects") {
-          app.innerHTML = `<h2>项目管理</h2><div class="toolbar"><button class="action" onclick="createProject()">新建项目</button></div>
-          ${table(["项目", "编号", "状态", "经费使用", "成员数"], state.projects.map((x) => [x.name, x.projectNo, badge(x.status), progress(x.usedBudget, x.totalBudget), state.members.filter((m) => m.projectId === x.id).length]))}`;
+          if (state.projectDetail) {
+            const d = state.projectDetail;
+            const dirMap = { Biology: "生物", Chemistry: "化学", Physics: "物理", Materials: "材料", CS: "计算机", Other: "其他" };
+            const leaderMap = { "u-pi": "王教授", "u-researcher": "李博士", "u-student": "赵同学", "u-admin": "平台管理员" };
+            app.innerHTML = `<button class="detail-back" onclick="state.projectDetail=null;render()">← 返回项目列表</button>
+            <div class="detail-header"><h2>${d.name}</h2>${badge(d.status)}</div>
+            <div class="detail-meta">
+              <div class="detail-meta-item"><div class="detail-meta-label">项目编号</div><div class="detail-meta-value">${d.projectNo}</div></div>
+              <div class="detail-meta-item"><div class="detail-meta-label">研究方向</div><div class="detail-meta-value">${dirMap[d.direction] || d.direction}</div></div>
+              <div class="detail-meta-item"><div class="detail-meta-label">负责人</div><div class="detail-meta-value">${leaderMap[d.leaderId] || d.leaderId}</div></div>
+              <div class="detail-meta-item"><div class="detail-meta-label">起止日期</div><div class="detail-meta-value">${d.startedAt} ~ ${d.expectedEndAt}</div></div>
+              <div class="detail-meta-item"><div class="detail-meta-label">总预算</div><div class="detail-meta-value">${currency(d.totalBudget)}</div></div>
+              <div class="detail-meta-item"><div class="detail-meta-label">已使用</div><div class="detail-meta-value">${currency(d.usedBudget)}</div></div>
+            </div>
+            ${progress(d.usedBudget, d.totalBudget)}
+            <div class="section-title">项目成员 (${d.members ? d.members.length : 0})</div>
+            <div class="members-list">${d.members && d.members.length ? d.members.map((m) => `<span class="member-tag">${leaderMap[m.userId] || m.userId} <span class="role">${m.role}</span></span>`).join("") : '<span style="color:var(--muted)">暂无成员</span>'}</div>
+            <div class="section-title">实验记录时间线 (${d.timeline ? d.timeline.length : 0})</div>
+            ${d.timeline && d.timeline.length ? `<div class="timeline">${d.timeline.sort((a, b) => a.experimentDate < b.experimentDate ? 1 : -1).map((e) => `<div class="timeline-item"><div class="timeline-date">${e.experimentDate}</div><div><span class="timeline-title">${e.title}</span><span class="timeline-status">${badge(e.reviewStatus)}</span></div></div>`).join("")}</div>` : '<span style="color:var(--muted)">暂无实验记录</span>'}`;
+          } else {
+            app.innerHTML = `<h2>项目管理</h2><div class="toolbar"><button class="action" onclick="createProject()">新建项目</button></div>
+            ${table(["项目", "编号", "状态", "经费使用", "成员数", "操作"], state.projects.map((x) => [x.name, x.projectNo, badge(x.status), progress(x.usedBudget, x.totalBudget), state.members.filter((m) => m.projectId === x.id).length, `<button class="action secondary" onclick="showProjectDetail('${x.id}')">查看详情</button>`]))}`;
+          }
         }
         if (state.view === "experiments") {
           app.innerHTML = `<h2>实验记录</h2><div class="toolbar"><button class="action" onclick="createExperiment()">创建记录</button></div>
@@ -174,6 +217,7 @@
       const projectName = (id) => state.projects.find((x) => x.id === id)?.name || id;
       const reagentName = (id) => state.reagents.find((x) => x.id === id)?.name || id;
       const experimentName = (id) => state.experiments.find((x) => x.id === id)?.title || id;
+      async function showProjectDetail(id) { state.projectDetail = await api(`/projects/${id}`); render(); }
       async function createProject() { await api("/projects", { method: "POST", body: JSON.stringify({ name: "单细胞数据复核项目", projectNo: "RL-2026-BIO-099", direction: "Biology", totalBudget: 180000 }) }); state.projects = await api("/projects"); render(); }
       async function createExperiment() { await api("/experiments", { method: "POST", body: JSON.stringify({ projectId: state.projects[0].id, title: "Western Blot 条件摸索", purpose: "优化抗体稀释比例", method: "WB" }) }); state.experiments = await api("/experiments"); render(); }
       async function submitExperiment(id) { await api(`/experiments/${id}/submit`, { method: "PATCH" }); state.experiments = await api("/experiments"); render(); }
